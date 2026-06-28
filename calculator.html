@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>CO₂ Hisoblagich — EkoPlan</title>
+  <link rel="stylesheet" href="css/style.css"/>
+  <style>
+    .calc-section { margin-bottom: 20px; }
+    .calc-section-title {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 15px; font-weight: 600; margin-bottom: 14px;
+      padding-bottom: 10px; border-bottom: 1px solid var(--border);
+    }
+    .calc-section-title .icon { font-size: 20px; }
+    .range-row { margin-bottom: 16px; }
+    .range-row label {
+      display: flex; justify-content: space-between;
+      font-size: 13px; color: var(--text2); margin-bottom: 8px; font-weight: 500;
+    }
+    .range-row label span { color: var(--green); font-weight: 600; }
+    .radio-group { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .radio-btn {
+      padding: 10px 8px; text-align: center; border-radius: var(--radius-sm);
+      border: 1px solid var(--border); cursor: pointer; font-size: 13px;
+      transition: all 0.2s; color: var(--text2);
+    }
+    .radio-btn.selected { border-color: var(--green2); background: var(--green-dim); color: var(--green); }
+    .radio-icon { font-size: 18px; display: block; margin-bottom: 3px; }
+    .result-box {
+      background: linear-gradient(135deg, #1a3a1a, #0f2a0f);
+      border: 2px solid var(--green-dim);
+      border-radius: var(--radius);
+      padding: 24px;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .result-total { font-size: 52px; font-weight: 800; color: var(--green); line-height: 1; }
+    .result-unit { font-size: 18px; color: var(--text2); margin-bottom: 12px; }
+    .result-breakdown { display: flex; justify-content: center; gap: 24px; margin-top: 16px; }
+    .result-item { text-align: center; }
+    .result-item .val { font-size: 18px; font-weight: 700; }
+    .result-item .lbl { font-size: 11px; color: var(--text2); margin-top: 2px; }
+    .result-tip {
+      margin-top: 14px; padding: 10px 14px;
+      background: var(--bg3); border-radius: var(--radius-sm);
+      font-size: 13px; color: var(--text2);
+    }
+    .result-tip strong { color: var(--text); }
+    .already-done {
+      text-align: center; padding: 20px;
+      background: #14532d22; border: 1px solid var(--green-dim);
+      border-radius: var(--radius); color: var(--green);
+    }
+  </style>
+</head>
+<body>
+  <nav class="navbar">
+    <div class="navbar-brand"><span>🌿</span>EkoPlan</div>
+    <div class="navbar-links">
+      <a href="dashboard.html">Dashboard</a>
+      <a href="calculator.html" class="active">CO₂ Hisoblagich</a>
+      <a href="tasks.html">Vazifalar</a>
+      <a href="profile.html">Profil</a>
+    </div>
+    <div class="navbar-user">
+      <div class="navbar-avatar" id="avatar">?</div>
+      <button class="btn btn-outline btn-sm" onclick="logout()">Chiqish</button>
+    </div>
+  </nav>
+
+  <div class="bottom-nav">
+    <div class="bottom-nav-items">
+      <a href="dashboard.html" class="bottom-nav-item"><span class="icon">🏠</span>Bosh</a>
+      <a href="calculator.html" class="bottom-nav-item active"><span class="icon">🌡️</span>CO₂</a>
+      <a href="tasks.html" class="bottom-nav-item"><span class="icon">✅</span>Vazifa</a>
+      <a href="profile.html" class="bottom-nav-item"><span class="icon">👤</span>Profil</a>
+    </div>
+  </div>
+
+  <div class="page-wrap">
+    <div id="loader" class="loader"><div class="spinner"></div> Yuklanmoqda...</div>
+    <div id="content" style="display:none">
+
+      <div class="page-title">🌡️ CO₂ Hisoblagich</div>
+      <div class="page-sub">Bugungi uglerod izingizni hisoblang</div>
+
+      <div id="already-done" class="already-done" style="display:none">
+        <div style="font-size:32px;margin-bottom:8px">✅</div>
+        <div style="font-weight:600;margin-bottom:4px">Bugun allaqachon hisoblangiz!</div>
+        <div style="font-size:13px;color:var(--text2)" id="already-val"></div>
+        <button class="btn btn-outline btn-sm" style="margin-top:12px" onclick="resetForm()">Yangilash</button>
+      </div>
+
+      <div id="calc-form">
+        <!-- Result live -->
+        <div class="result-box">
+          <div class="result-total" id="r-total">0.0</div>
+          <div class="result-unit">kg CO₂ bugun</div>
+          <div class="result-breakdown">
+            <div class="result-item">
+              <div class="val" id="r-transport" style="color:#60a5fa">0.0</div>
+              <div class="lbl">🚗 Transport</div>
+            </div>
+            <div class="result-item">
+              <div class="val" id="r-food" style="color:#f97316">0.0</div>
+              <div class="lbl">🍔 Ovqat</div>
+            </div>
+            <div class="result-item">
+              <div class="val" id="r-energy" style="color:#eab308">0.0</div>
+              <div class="lbl">⚡ Energiya</div>
+            </div>
+          </div>
+          <div class="result-tip" id="r-tip">Ma'lumot kiriting — natija ko'rinadi</div>
+        </div>
+
+        <!-- Transport -->
+        <div class="card calc-section">
+          <div class="calc-section-title"><span class="icon">🚗</span>Transport</div>
+
+          <div class="range-row">
+            <label>Shaxsiy mashina (benzin) <span id="car-val">0</span> km</label>
+            <input type="range" min="0" max="200" value="0" id="car" oninput="calc()"/>
+          </div>
+          <div class="range-row">
+            <label>Avtobus / marshrutka <span id="bus-val">0</span> km</label>
+            <input type="range" min="0" max="100" value="0" id="bus" oninput="calc()"/>
+          </div>
+          <div class="range-row">
+            <label>Metro <span id="metro-val">0</span> km</label>
+            <input type="range" min="0" max="50" value="0" id="metro" oninput="calc()"/>
+          </div>
+          <div class="range-row">
+            <label>Samolyot <span id="plane-val">0</span> km</label>
+            <input type="range" min="0" max="5000" step="50" value="0" id="plane" oninput="calc()"/>
+          </div>
+        </div>
+
+        <!-- Food -->
+        <div class="card calc-section">
+          <div class="calc-section-title"><span class="icon">🍔</span>Ovqat</div>
+          <div style="margin-bottom:8px;font-size:13px;color:var(--text2)">Bugungi asosiy ovqat turi:</div>
+          <div class="radio-group" id="food-group">
+            <div class="radio-btn selected" data-val="3.3" onclick="selectFood(this)">
+              <span class="radio-icon">🥩</span>Go'sht
+            </div>
+            <div class="radio-btn" data-val="1.7" onclick="selectFood(this)">
+              <span class="radio-icon">🥗</span>Vegetarian
+            </div>
+            <div class="radio-btn" data-val="0.9" onclick="selectFood(this)">
+              <span class="radio-icon">🌱</span>Vegan
+            </div>
+          </div>
+        </div>
+
+        <!-- Energy -->
+        <div class="card calc-section">
+          <div class="calc-section-title"><span class="icon">⚡</span>Energiya</div>
+          <div class="range-row">
+            <label>Elektr energiya <span id="elec-val">0</span> kWh</label>
+            <input type="range" min="0" max="50" value="0" id="elec" oninput="calc()"/>
+          </div>
+          <div class="range-row">
+            <label>Tabiiy gaz <span id="gas-val">0</span> m³</label>
+            <input type="range" min="0" max="20" value="0" id="gas" oninput="calc()"/>
+          </div>
+        </div>
+
+        <button class="btn btn-primary btn-full" onclick="savelog()" id="save-btn">
+          💾 Bugungi natijani saqlash
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/supabase.js"></script>
+  <script src="js/auth.js"></script>
+  <script>
+    let currentUser = null;
+    let foodCo2 = 3.3;
+    const today = new Date().toISOString().split('T')[0];
+
+    function selectFood(el) {
+      document.querySelectorAll('#food-group .radio-btn').forEach(b => b.classList.remove('selected'));
+      el.classList.add('selected');
+      foodCo2 = parseFloat(el.dataset.val);
+      calc();
+    }
+
+    function calc() {
+      const car = +document.getElementById('car').value;
+      const bus = +document.getElementById('bus').value;
+      const metro = +document.getElementById('metro').value;
+      const plane = +document.getElementById('plane').value;
+      const elec = +document.getElementById('elec').value;
+      const gas = +document.getElementById('gas').value;
+
+      document.getElementById('car-val').textContent = car;
+      document.getElementById('bus-val').textContent = bus;
+      document.getElementById('metro-val').textContent = metro;
+      document.getElementById('plane-val').textContent = plane;
+      document.getElementById('elec-val').textContent = elec;
+      document.getElementById('gas-val').textContent = gas;
+
+      const tCo2 = car * 0.21 + bus * 0.089 + metro * 0.041 + plane * 0.255;
+      const fCo2 = foodCo2;
+      const eCo2 = elec * 0.233 + gas * 2.0;
+      const total = tCo2 + fCo2 + eCo2;
+
+      document.getElementById('r-transport').textContent = tCo2.toFixed(2);
+      document.getElementById('r-food').textContent = fCo2.toFixed(2);
+      document.getElementById('r-energy').textContent = eCo2.toFixed(2);
+      document.getElementById('r-total').textContent = total.toFixed(1);
+
+      let tip = '';
+      if (total < 3) tip = '🌟 Ajoyib! Siz bugun juda oz CO₂ chiqardingiz';
+      else if (total < 6) tip = '✅ Yaxshi! O\'rtachadan past — davom eting';
+      else if (total < 10) tip = '⚠️ O\'rtacha. Transport yoki ovqatni kamaytiring';
+      else tip = '🚨 Yuqori! Bugun transport ishlatishni kamaytiring';
+      document.getElementById('r-tip').innerHTML = tip;
+
+      return { tCo2, fCo2, eCo2, total };
+    }
+
+    function resetForm() {
+      document.getElementById('already-done').style.display = 'none';
+      document.getElementById('calc-form').style.display = 'block';
+    }
+
+    async function savelog() {
+      if (!currentUser) return;
+      const { tCo2, fCo2, eCo2, total } = calc();
+      const ball = Math.max(0, Math.round(20 - total * 2));
+
+      const { error } = await _sb.from('daily_logs').upsert({
+        user_id: currentUser.id,
+        log_date: today,
+        transport_co2: +tCo2.toFixed(3),
+        food_co2: +fCo2.toFixed(3),
+        energy_co2: +eCo2.toFixed(3),
+        total_co2: +total.toFixed(3),
+        ball
+      }, { onConflict: 'user_id,log_date' });
+
+      if (error) return alert('Xatolik: ' + error.message);
+
+      // Update profile ball & streak
+      const profile = await getProfile(currentUser.id);
+      const newBall = (profile?.total_ball || 0) + ball;
+      const streak = await updateStreak(currentUser.id);
+      await _sb.from('profiles').update({ total_ball: newBall }).eq('id', currentUser.id);
+
+      alert('✅ Saqlandi! +' + ball + ' ball | 🔥 ' + streak + ' kun streak');
+      location.href = 'dashboard.html';
+    }
+
+    (async () => {
+      currentUser = await requireAuth();
+      if (!currentUser) return;
+
+      const profile = await getProfile(currentUser.id);
+      const name = (profile?.full_name || currentUser.email).split(' ')[0];
+      document.getElementById('avatar').textContent = name[0].toUpperCase();
+
+      // Check if already logged today
+      const { data: existing } = await _sb.from('daily_logs')
+        .select('total_co2').eq('user_id', currentUser.id).eq('log_date', today).single();
+
+      if (existing) {
+        document.getElementById('already-done').style.display = 'block';
+        document.getElementById('calc-form').style.display = 'none';
+        document.getElementById('already-val').textContent =
+          'Bugungi CO₂: ' + existing.total_co2 + ' kg';
+      }
+
+      document.getElementById('loader').style.display = 'none';
+      document.getElementById('content').style.display = 'block';
+      calc();
+    })();
+  </script>
+</body>
+</html>

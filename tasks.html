@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Vazifalar — EkoPlan</title>
+  <link rel="stylesheet" href="css/style.css"/>
+  <style>
+    .task-header { display: flex; align-items: center; gap: 14px; padding: 16px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 20px; }
+    .task-progress-info { flex: 1; }
+    .task-progress-info h3 { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+    .task-progress-info p { font-size: 13px; color: var(--text2); margin-bottom: 8px; }
+    .cat-filter { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+    .cat-btn {
+      padding: 6px 14px; border-radius: 20px; border: 1px solid var(--border);
+      background: transparent; color: var(--text2); font-size: 13px; cursor: pointer;
+      font-family: inherit; transition: all 0.2s;
+    }
+    .cat-btn.active { background: var(--green-dim); border-color: var(--green2); color: var(--green); }
+    .task-ball { padding: 3px 8px; background: var(--bg3); border-radius: 20px; font-size: 12px; color: var(--brown2); font-weight: 600; }
+    .tasks-done-banner {
+      text-align: center; padding: 30px;
+      background: linear-gradient(135deg, #14532d22, #0f1a0f);
+      border: 1px solid var(--green-dim); border-radius: var(--radius);
+    }
+    .cat-icon { font-size: 11px; }
+  </style>
+</head>
+<body>
+  <nav class="navbar">
+    <div class="navbar-brand"><span>🌿</span>EkoPlan</div>
+    <div class="navbar-links">
+      <a href="dashboard.html">Dashboard</a>
+      <a href="calculator.html">CO₂ Hisoblagich</a>
+      <a href="tasks.html" class="active">Vazifalar</a>
+      <a href="profile.html">Profil</a>
+    </div>
+    <div class="navbar-user">
+      <div class="navbar-avatar" id="avatar">?</div>
+      <button class="btn btn-outline btn-sm" onclick="logout()">Chiqish</button>
+    </div>
+  </nav>
+
+  <div class="bottom-nav">
+    <div class="bottom-nav-items">
+      <a href="dashboard.html" class="bottom-nav-item"><span class="icon">🏠</span>Bosh</a>
+      <a href="calculator.html" class="bottom-nav-item"><span class="icon">🌡️</span>CO₂</a>
+      <a href="tasks.html" class="bottom-nav-item active"><span class="icon">✅</span>Vazifa</a>
+      <a href="profile.html" class="bottom-nav-item"><span class="icon">👤</span>Profil</a>
+    </div>
+  </div>
+
+  <div class="page-wrap">
+    <div id="loader" class="loader"><div class="spinner"></div> Yuklanmoqda...</div>
+    <div id="content" style="display:none">
+
+      <div class="page-title">✅ Bugungi Vazifalar</div>
+      <div class="page-sub">Har bir vazifa bajarish ball beradi</div>
+
+      <!-- Progress -->
+      <div class="task-header">
+        <div style="font-size:32px">🎯</div>
+        <div class="task-progress-info">
+          <h3><span id="done-count">0</span> / <span id="total-count">0</span> vazifa bajarildi</h3>
+          <p>+<span id="earned-ball">0</span> ball bugun</p>
+          <div class="progress-wrap"><div class="progress-bar" id="task-progress" style="width:0%"></div></div>
+        </div>
+      </div>
+
+      <!-- Filter -->
+      <div class="cat-filter">
+        <button class="cat-btn active" onclick="filterCat('all', this)">🌍 Hammasi</button>
+        <button class="cat-btn" onclick="filterCat('transport', this)">🚗 Transport</button>
+        <button class="cat-btn" onclick="filterCat('food', this)">🍔 Ovqat</button>
+        <button class="cat-btn" onclick="filterCat('energy', this)">⚡ Energiya</button>
+        <button class="cat-btn" onclick="filterCat('general', this)">🌱 Umumiy</button>
+      </div>
+
+      <div id="tasks-list"></div>
+
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/supabase.js"></script>
+  <script src="js/auth.js"></script>
+  <script>
+    let currentUser = null;
+    let allTasks = [];
+    let doneTasks = new Set();
+    const today = new Date().toISOString().split('T')[0];
+    const catIcons = { transport:'🚗', food:'🍔', energy:'⚡', general:'🌱' };
+    const catLabels = { transport:'Transport', food:'Ovqat', energy:'Energiya', general:'Umumiy' };
+    let currentCat = 'all';
+
+    async function toggleTask(taskId, ball) {
+      if (doneTasks.has(taskId)) {
+        // Unmark
+        await _sb.from('user_tasks')
+          .delete()
+          .eq('user_id', currentUser.id)
+          .eq('task_id', taskId)
+          .eq('log_date', today);
+        doneTasks.delete(taskId);
+        // Deduct ball
+        const p = await getProfile(currentUser.id);
+        await _sb.from('profiles').update({ total_ball: Math.max(0, (p?.total_ball||0) - ball) }).eq('id', currentUser.id);
+      } else {
+        // Mark done
+        const { error } = await _sb.from('user_tasks').upsert({
+          user_id: currentUser.id, task_id: taskId, log_date: today
+        }, { onConflict: 'user_id,task_id,log_date' });
+        if (error) return alert(error.message);
+        doneTasks.add(taskId);
+        // Add ball
+        const p = await getProfile(currentUser.id);
+        await _sb.from('profiles').update({ total_ball: (p?.total_ball||0) + ball }).eq('id', currentUser.id);
+      }
+      renderTasks();
+    }
+
+    function renderTasks() {
+      const filtered = currentCat === 'all' ? allTasks : allTasks.filter(t => t.category === currentCat);
+      const list = document.getElementById('tasks-list');
+
+      if (filtered.length === 0) {
+        list.innerHTML = '<div class="empty"><div class="empty-icon">📭</div><div class="empty-text">Bu kategoriyada vazifa yo\'q</div></div>';
+        return;
+      }
+
+      let earned = 0;
+      doneTasks.forEach(id => {
+        const t = allTasks.find(x => x.id === id);
+        if (t) earned += t.ball;
+      });
+
+      document.getElementById('done-count').textContent = doneTasks.size;
+      document.getElementById('total-count').textContent = allTasks.length;
+      document.getElementById('earned-ball').textContent = earned;
+      const pct = allTasks.length ? Math.round(doneTasks.size / allTasks.length * 100) : 0;
+      document.getElementById('task-progress').style.width = pct + '%';
+
+      list.innerHTML = filtered.map(t => {
+        const done = doneTasks.has(t.id);
+        return '<div class="task-card' + (done ? ' done' : '') + '">' +
+          '<div class="task-check' + (done ? ' checked' : '') + '" onclick="toggleTask(\'' + t.id + '\',' + t.ball + ')">' +
+          (done ? '✓' : '') + '</div>' +
+          '<div style="flex:1">' +
+          '<div class="task-title">' + t.title + '</div>' +
+          '<div class="task-meta">' + catIcons[t.category] + ' ' + catLabels[t.category] +
+          (t.description ? ' · ' + t.description : '') + '</div></div>' +
+          '<div class="task-ball">+' + t.ball + ' ⭐</div>' +
+          '</div>';
+      }).join('');
+    }
+
+    function filterCat(cat, btn) {
+      currentCat = cat;
+      document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      renderTasks();
+    }
+
+    (async () => {
+      currentUser = await requireAuth();
+      if (!currentUser) return;
+
+      const profile = await getProfile(currentUser.id);
+      const name = (profile?.full_name || currentUser.email).split(' ')[0];
+      document.getElementById('avatar').textContent = name[0].toUpperCase();
+
+      const [{ data: tasks }, { data: done }] = await Promise.all([
+        _sb.from('tasks').select('*').eq('is_active', true).order('category'),
+        _sb.from('user_tasks').select('task_id').eq('user_id', currentUser.id).eq('log_date', today)
+      ]);
+
+      allTasks = tasks || [];
+      doneTasks = new Set((done || []).map(d => d.task_id));
+
+      document.getElementById('loader').style.display = 'none';
+      document.getElementById('content').style.display = 'block';
+      renderTasks();
+    })();
+  </script>
+</body>
+</html>

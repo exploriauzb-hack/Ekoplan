@@ -1,3 +1,3 @@
-const SUPABASE_URL ='https://lejxipnzmowetxxskjrk.supabase.co';
+const SUPABASE_URL = 'https://lejxipnzmowetxxskjrk.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxlanhpcG56bW93ZXR4eHNranJrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk4MDE5MDEsImV4cCI6MjA5NTM3NzkwMX0.ymsofAzDUUDtgZR5cF97EZd4zP79QZzYHNTd_zG6lnw';
 const _sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);

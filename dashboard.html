@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Dashboard — EkoPlan</title>
+  <link rel="stylesheet" href="css/style.css"/>
+  <style>
+    .welcome { margin-bottom: 24px; }
+    .welcome h2 { font-size: 20px; font-weight: 700; }
+    .welcome p { color: var(--text2); font-size: 14px; }
+    .streak-banner {
+      background: linear-gradient(135deg, #1a3a1a, #0f2a0f);
+      border: 1px solid var(--green-dim);
+      border-radius: var(--radius);
+      padding: 20px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    .streak-icon { font-size: 36px; }
+    .streak-info h3 { font-size: 18px; font-weight: 700; color: var(--green); }
+    .streak-info p { font-size: 13px; color: var(--text2); }
+    .today-co2 {
+      background: linear-gradient(135deg, var(--card), var(--bg3));
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .today-co2 .val { font-size: 42px; font-weight: 800; color: var(--green); }
+    .today-co2 .unit { font-size: 16px; color: var(--text2); }
+    .today-co2 .label { font-size: 13px; color: var(--text2); margin-top: 4px; }
+    .co2-bar-wrap { margin-top: 14px; }
+    .co2-bar-label { display: flex; justify-content: space-between; font-size: 12px; color: var(--text2); margin-bottom: 6px; }
+    .quick-links { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+    .quick-link {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 20px 12px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      text-decoration: none;
+      color: var(--text);
+      transition: all 0.2s;
+      gap: 8px;
+    }
+    .quick-link:hover { border-color: var(--green2); transform: translateY(-2px); color: var(--text); }
+    .quick-link .ql-icon { font-size: 28px; }
+    .quick-link .ql-label { font-size: 13px; font-weight: 500; }
+    .quick-link .ql-sub { font-size: 11px; color: var(--text2); }
+    .week-chart { display: flex; align-items: flex-end; gap: 8px; height: 80px; margin-top: 12px; }
+    .week-bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; height: 100%; }
+    .week-bar-outer { flex: 1; width: 100%; background: var(--bg3); border-radius: 4px; display: flex; align-items: flex-end; }
+    .week-bar-inner { width: 100%; background: var(--green-dim); border-radius: 4px; transition: height 0.5s; min-height: 4px; }
+    .week-bar-inner.today { background: var(--green2); }
+    .week-day { font-size: 10px; color: var(--text2); }
+  </style>
+</head>
+<body>
+  <!-- Navbar -->
+  <nav class="navbar">
+    <div class="navbar-brand"><span>🌿</span>EkoPlan</div>
+    <div class="navbar-links">
+      <a href="dashboard.html" class="active">Dashboard</a>
+      <a href="calculator.html">CO₂ Hisoblagich</a>
+      <a href="tasks.html">Vazifalar</a>
+      <a href="profile.html">Profil</a>
+    </div>
+    <div class="navbar-user">
+      <div class="navbar-avatar" id="avatar">?</div>
+      <button class="btn btn-outline btn-sm" onclick="logout()">Chiqish</button>
+    </div>
+  </nav>
+
+  <!-- Bottom nav -->
+  <div class="bottom-nav">
+    <div class="bottom-nav-items">
+      <a href="dashboard.html" class="bottom-nav-item active"><span class="icon">🏠</span>Bosh</a>
+      <a href="calculator.html" class="bottom-nav-item"><span class="icon">🌡️</span>CO₂</a>
+      <a href="tasks.html" class="bottom-nav-item"><span class="icon">✅</span>Vazifa</a>
+      <a href="profile.html" class="bottom-nav-item"><span class="icon">👤</span>Profil</a>
+    </div>
+  </div>
+
+  <div class="page-wrap">
+    <div id="loader" class="loader"><div class="spinner"></div> Yuklanmoqda...</div>
+    <div id="content" style="display:none">
+
+      <div class="welcome">
+        <h2>Salom, <span id="uname">Foydalanuvchi</span>! 👋</h2>
+        <p id="today-date"></p>
+      </div>
+
+      <!-- Streak -->
+      <div class="streak-banner">
+        <div class="streak-icon">🔥</div>
+        <div class="streak-info">
+          <h3><span id="streak">0</span> kunlik streak!</h3>
+          <p>Ketma-ket ekologik kun — davom eting!</p>
+        </div>
+      </div>
+
+      <!-- Today CO2 -->
+      <div class="today-co2">
+        <div class="val" id="today-co2">0.0</div>
+        <div class="unit">kg CO₂</div>
+        <div class="label">Bugungi uglerod izi</div>
+        <div class="co2-bar-wrap">
+          <div class="co2-bar-label"><span>0</span><span>Maqsad: &lt; 5 kg</span><span>10 kg</span></div>
+          <div class="progress-wrap"><div class="progress-bar" id="co2-bar" style="width:0%"></div></div>
+        </div>
+      </div>
+
+      <!-- Stats -->
+      <div class="grid-4" style="margin-bottom:20px">
+        <div class="card stat-card">
+          <div class="stat-icon">⭐</div>
+          <div class="stat-val" id="total-ball">0</div>
+          <div class="stat-label">Jami ball</div>
+        </div>
+        <div class="card stat-card">
+          <div class="stat-icon">📅</div>
+          <div class="stat-val" id="total-days">0</div>
+          <div class="stat-label">Log kunlar</div>
+        </div>
+        <div class="card stat-card">
+          <div class="stat-icon">✅</div>
+          <div class="stat-val" id="tasks-done">0</div>
+          <div class="stat-label">Bugungi vazifa</div>
+        </div>
+        <div class="card stat-card">
+          <div class="stat-icon">🌱</div>
+          <div class="stat-val" id="avg-co2">0</div>
+          <div class="stat-label">O'rtacha CO₂</div>
+        </div>
+      </div>
+
+      <!-- Quick links -->
+      <div class="quick-links">
+        <a href="calculator.html" class="quick-link">
+          <span class="ql-icon">🌡️</span>
+          <span class="ql-label">CO₂ Hisoblash</span>
+          <span class="ql-sub">Bugungi izni kiriting</span>
+        </a>
+        <a href="tasks.html" class="quick-link">
+          <span class="ql-icon">✅</span>
+          <span class="ql-label">Vazifalar</span>
+          <span class="ql-sub">Bugungi challenge</span>
+        </a>
+      </div>
+
+      <!-- Weekly chart -->
+      <div class="card">
+        <div class="section-header">
+          <div class="section-title">📈 Haftalik CO₂ izi</div>
+        </div>
+        <div class="week-chart" id="week-chart"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/supabase.js"></script>
+  <script src="js/auth.js"></script>
+  <script>
+    const days = ['Yak','Du','Se','Ch','Pa','Sh','Ya'];
+    const today = new Date();
+
+    document.getElementById('today-date').textContent =
+      today.toLocaleDateString('uz-UZ', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+
+    (async () => {
+      const user = await requireAuth();
+      if (!user) return;
+
+      const profile = await getProfile(user.id);
+      const name = (profile?.full_name || user.email).split(' ')[0];
+      document.getElementById('uname').textContent = name;
+      document.getElementById('avatar').textContent = name[0].toUpperCase();
+      document.getElementById('streak').textContent = profile?.streak || 0;
+      document.getElementById('total-ball').textContent = profile?.total_ball || 0;
+
+      // Today's log
+      const todayStr = today.toISOString().split('T')[0];
+      const { data: todayLog } = await _sb.from('daily_logs')
+        .select('*').eq('user_id', user.id).eq('log_date', todayStr).single();
+
+      const co2 = todayLog?.total_co2 || 0;
+      document.getElementById('today-co2').textContent = co2.toFixed(1);
+      document.getElementById('co2-bar').style.width = Math.min(co2 / 10 * 100, 100) + '%';
+
+      // Total days
+      const { count } = await _sb.from('daily_logs')
+        .select('*', { count: 'exact', head: true }).eq('user_id', user.id);
+      document.getElementById('total-days').textContent = count || 0;
+
+      // Tasks done today
+      const { count: tc } = await _sb.from('user_tasks')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id).eq('log_date', todayStr);
+      document.getElementById('tasks-done').textContent = tc || 0;
+
+      // Weekly logs
+      const weekStart = new Date(today);
+      weekStart.setDate(today.getDate() - 6);
+      const { data: logs } = await _sb.from('daily_logs')
+        .select('log_date,total_co2').eq('user_id', user.id)
+        .gte('log_date', weekStart.toISOString().split('T')[0])
+        .order('log_date');
+
+      const logMap = {};
+      (logs || []).forEach(l => logMap[l.log_date] = l.total_co2);
+
+      let totalCo2 = 0, logCount = 0;
+      const chart = document.getElementById('week-chart');
+      chart.innerHTML = '';
+      const maxCo2 = Math.max(...Object.values(logMap), 1);
+
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date(today);
+        d.setDate(today.getDate() - i);
+        const ds = d.toISOString().split('T')[0];
+        const val = logMap[ds] || 0;
+        if (val > 0) { totalCo2 += val; logCount++; }
+        const pct = Math.max(val / maxCo2 * 100, 5);
+        const isToday = i === 0;
+        chart.innerHTML += '<div class="week-bar-wrap">' +
+          '<div class="week-bar-outer"><div class="week-bar-inner' + (isToday ? ' today' : '') +
+          '" style="height:' + pct + '%"></div></div>' +
+          '<span class="week-day">' + days[d.getDay()] + '</span></div>';
+      }
+
+      document.getElementById('avg-co2').textContent =
+        logCount > 0 ? (totalCo2 / logCount).toFixed(1) : '0';
+
+      document.getElementById('loader').style.display = 'none';
+      document.getElementById('content').style.display = 'block';
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin — EkoPlan</title>
+  <link rel="stylesheet" href="css/style.css"/>
+  <style>
+    .admin-tabs { display: flex; gap: 4px; background: var(--bg3); padding: 4px; border-radius: var(--radius-sm); margin-bottom: 24px; }
+    .admin-tab {
+      flex: 1; text-align: center; padding: 8px; border-radius: 6px;
+      cursor: pointer; font-size: 13px; font-weight: 500; color: var(--text2); transition: all 0.2s;
+    }
+    .admin-tab.active { background: var(--green2); color: #0f1a0f; }
+    .admin-section { display: none; }
+    .admin-section.show { display: block; }
+    .stat-row { display: flex; gap: 12px; margin-bottom: 20px; }
+    .stat-row .card { flex: 1; text-align: center; }
+    .task-actions { display: flex; gap: 8px; }
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 200; padding: 20px;
+    }
+    .modal { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; width: 100%; max-width: 440px; }
+    .modal h3 { font-size: 16px; font-weight: 600; margin-bottom: 16px; }
+    .modal-btns { display: flex; gap: 10px; margin-top: 16px; }
+    .access-denied { text-align: center; padding: 60px 20px; }
+    .access-denied .icon { font-size: 52px; margin-bottom: 14px; }
+  </style>
+</head>
+<body>
+  <nav class="navbar">
+    <div class="navbar-brand"><span>🌿</span>EkoPlan <span class="badge badge-brown" style="font-size:11px;margin-left:4px">ADMIN</span></div>
+    <div class="navbar-user">
+      <div class="navbar-avatar" id="nav-avatar">A</div>
+      <button class="btn btn-outline btn-sm" onclick="logout()">Chiqish</button>
+    </div>
+  </nav>
+
+  <div class="page-wrap" style="padding-bottom:20px">
+    <div id="loader" class="loader"><div class="spinner"></div> Tekshirilmoqda...</div>
+
+    <!-- Access denied -->
+    <div id="denied" style="display:none" class="access-denied">
+      <div class="icon">🔒</div>
+      <div style="font-size:18px;font-weight:700;margin-bottom:8px">Ruxsat yo'q</div>
+      <div style="color:var(--text2);font-size:14px;margin-bottom:16px">Bu sahifa faqat adminlar uchun</div>
+      <a href="dashboard.html" class="btn btn-primary">Dashboard ga qaytish</a>
+    </div>
+
+    <div id="content" style="display:none">
+      <div class="page-title">⚙️ Admin Panel</div>
+      <div class="page-sub">EkoPlan boshqaruvi</div>
+
+      <!-- Stats -->
+      <div class="stat-row">
+        <div class="card stat-card">
+          <div class="stat-icon">👥</div>
+          <div class="stat-val" id="a-users">—</div>
+          <div class="stat-label">Foydalanuvchilar</div>
+        </div>
+        <div class="card stat-card">
+          <div class="stat-icon">📊</div>
+          <div class="stat-val" id="a-logs">—</div>
+          <div class="stat-label">Jami loglar</div>
+        </div>
+        <div class="card stat-card">
+          <div class="stat-icon">✅</div>
+          <div class="stat-val" id="a-tasks">—</div>
+          <div class="stat-label">Vazifalar</div>
+        </div>
+        <div class="card stat-card">
+          <div class="stat-icon">🌿</div>
+          <div class="stat-val" id="a-co2">—</div>
+          <div class="stat-label">Ort. CO₂ (kg)</div>
+        </div>
+      </div>
+
+      <!-- Tabs -->
+      <div class="admin-tabs">
+        <div class="admin-tab active" onclick="switchTab('tasks-tab', this)">📋 Vazifalar</div>
+        <div class="admin-tab" onclick="switchTab('users-tab', this)">👥 Foydalanuvchilar</div>
+        <div class="admin-tab" onclick="switchTab('logs-tab', this)">📊 Loglar</div>
+      </div>
+
+      <!-- Tasks tab -->
+      <div id="tasks-tab" class="admin-section show">
+        <div class="section-header">
+          <div class="section-title">Barcha vazifalar</div>
+          <button class="btn btn-primary btn-sm" onclick="openTaskModal()">+ Vazifa qo'shish</button>
+        </div>
+        <div id="tasks-table"></div>
+      </div>
+
+      <!-- Users tab -->
+      <div id="users-tab" class="admin-section">
+        <div class="section-header">
+          <div class="section-title">Ro'yxatdan o'tgan foydalanuvchilar</div>
+        </div>
+        <div class="card">
+          <table class="table">
+            <thead><tr><th>Ism</th><th>Ball</th><th>Streak</th><th>Oxirgi log</th></tr></thead>
+            <tbody id="users-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Logs tab -->
+      <div id="logs-tab" class="admin-section">
+        <div class="section-header">
+          <div class="section-title">So'nggi loglar</div>
+        </div>
+        <div class="card">
+          <table class="table">
+            <thead><tr><th>Sana</th><th>Transport</th><th>Ovqat</th><th>Energiya</th><th>Jami CO₂</th><th>Ball</th></tr></thead>
+            <tbody id="logs-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Task modal -->
+  <div id="modal" class="modal-overlay" style="display:none" onclick="closeModal(event)">
+    <div class="modal" onclick="event.stopPropagation()">
+      <h3 id="modal-title">Yangi vazifa</h3>
+      <div id="modal-msg"></div>
+      <input type="hidden" id="m-id"/>
+      <div class="input-group">
+        <label>Nomi</label>
+        <input type="text" id="m-title" placeholder="Vazifa nomi"/>
+      </div>
+      <div class="input-group">
+        <label>Tavsif</label>
+        <input type="text" id="m-desc" placeholder="Qisqa izoh (ixtiyoriy)"/>
+      </div>
+      <div class="input-group">
+        <label>Kategoriya</label>
+        <select id="m-cat">
+          <option value="transport">🚗 Transport</option>
+          <option value="food">🍔 Ovqat</option>
+          <option value="energy">⚡ Energiya</option>
+          <option value="general">🌱 Umumiy</option>
+        </select>
+      </div>
+      <div class="input-group">
+        <label>Ball</label>
+        <input type="number" id="m-ball" value="10" min="1" max="50"/>
+      </div>
+      <div class="input-group">
+        <label>Holati</label>
+        <select id="m-active">
+          <option value="true">✅ Faol</option>
+          <option value="false">❌ Nofaol</option>
+        </select>
+      </div>
+      <div class="modal-btns">
+        <button class="btn btn-primary" onclick="saveTask()">Saqlash</button>
+        <button class="btn btn-outline" onclick="document.getElementById('modal').style.display='none'">Bekor</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/supabase.js"></script>
+  <script src="js/auth.js"></script>
+  <script>
+    const catLabels = { transport:'🚗 Transport', food:'🍔 Ovqat', energy:'⚡ Energiya', general:'🌱 Umumiy' };
+    let allTasks = [];
+
+    function switchTab(id, btn) {
+      document.querySelectorAll('.admin-section').forEach(s => s.classList.remove('show'));
+      document.querySelectorAll('.admin-tab').forEach(b => b.classList.remove('active'));
+      document.getElementById(id).classList.add('show');
+      btn.classList.add('active');
+    }
+
+    function openTaskModal(task) {
+      document.getElementById('modal-title').textContent = task ? 'Vazifani tahrirlash' : 'Yangi vazifa';
+      document.getElementById('m-id').value = task?.id || '';
+      document.getElementById('m-title').value = task?.title || '';
+      document.getElementById('m-desc').value = task?.description || '';
+      document.getElementById('m-cat').value = task?.category || 'general';
+      document.getElementById('m-ball').value = task?.ball || 10;
+      document.getElementById('m-active').value = task ? String(task.is_active) : 'true';
+      document.getElementById('modal-msg').innerHTML = '';
+      document.getElementById('modal').style.display = 'flex';
+    }
+
+    function closeModal(e) {
+      if (e.target === document.getElementById('modal')) document.getElementById('modal').style.display = 'none';
+    }
+
+    async function saveTask() {
+      const id = document.getElementById('m-id').value;
+      const payload = {
+        title: document.getElementById('m-title').value.trim(),
+        description: document.getElementById('m-desc').value.trim(),
+        category: document.getElementById('m-cat').value,
+        ball: parseInt(document.getElementById('m-ball').value),
+        is_active: document.getElementById('m-active').value === 'true'
+      };
+      if (!payload.title) {
+        document.getElementById('modal-msg').innerHTML = '<div class="alert alert-error">Nomi bo\'sh bo\'lmasin</div>';
+        return;
+      }
+      let error;
+      if (id) {
+        ({ error } = await _sb.from('tasks').update(payload).eq('id', id));
+      } else {
+        ({ error } = await _sb.from('tasks').insert(payload));
+      }
+      if (error) {
+        document.getElementById('modal-msg').innerHTML = '<div class="alert alert-error">' + error.message + '</div>';
+        return;
+      }
+      document.getElementById('modal').style.display = 'none';
+      loadTasks();
+    }
+
+    async function deleteTask(id) {
+      if (!confirm('Rostdan ham o\'chirmoqchimisiz?')) return;
+      await _sb.from('tasks').delete().eq('id', id);
+      loadTasks();
+    }
+
+    async function loadTasks() {
+      const { data } = await _sb.from('tasks').select('*').order('created_at', { ascending: false });
+      allTasks = data || [];
+      document.getElementById('a-tasks').textContent = allTasks.length;
+      const container = document.getElementById('tasks-table');
+      container.innerHTML = '<div class="card"><table class="table"><thead><tr>' +
+        '<th>Nomi</th><th>Kategoriya</th><th>Ball</th><th>Holat</th><th>Amal</th>' +
+        '</tr></thead><tbody>' +
+        allTasks.map(t =>
+          '<tr><td><strong>' + t.title + '</strong>' +
+          (t.description ? '<br><small style="color:var(--text2)">' + t.description + '</small>' : '') + '</td>' +
+          '<td>' + (catLabels[t.category] || t.category) + '</td>' +
+          '<td><span class="badge badge-brown">+' + t.ball + ' ⭐</span></td>' +
+          '<td>' + (t.is_active ? '<span class="badge badge-green">Faol</span>' : '<span class="badge badge-gray">Nofaol</span>') + '</td>' +
+          '<td><div class="task-actions">' +
+          '<button class="btn btn-outline btn-sm" onclick="openTaskModal(' + JSON.stringify(t).replace(/"/g,'&quot;') + ')">✏️</button>' +
+          '<button class="btn btn-danger btn-sm" onclick="deleteTask(\'' + t.id + '\')">🗑️</button>' +
+          '</div></td></tr>'
+        ).join('') +
+        '</tbody></table></div>';
+    }
+
+    async function loadUsers() {
+      const { data } = await _sb.from('profiles').select('*').order('total_ball', { ascending: false });
+      document.getElementById('a-users').textContent = (data || []).length;
+      document.getElementById('users-tbody').innerHTML = (data || []).map(u =>
+        '<tr><td>' + (u.full_name || '—') + '</td>' +
+        '<td><strong>' + u.total_ball + '</strong> ⭐</td>' +
+        '<td>🔥 ' + u.streak + '</td>' +
+        '<td>' + (u.last_log_date || '—') + '</td></tr>'
+      ).join('');
+    }
+
+    async function loadLogs() {
+      const { data, count } = await _sb.from('daily_logs')
+        .select('*', { count: 'exact' })
+        .order('log_date', { ascending: false })
+        .limit(50);
+      document.getElementById('a-logs').textContent = count || 0;
+
+      const totalCo2 = (data || []).reduce((s, l) => s + l.total_co2, 0);
+      document.getElementById('a-co2').textContent =
+        data?.length ? (totalCo2 / data.length).toFixed(1) : '0';
+
+      document.getElementById('logs-tbody').innerHTML = (data || []).map(l =>
+        '<tr><td>' + l.log_date + '</td>' +
+        '<td>' + l.transport_co2.toFixed(2) + ' kg</td>' +
+        '<td>' + l.food_co2.toFixed(2) + ' kg</td>' +
+        '<td>' + l.energy_co2.toFixed(2) + ' kg</td>' +
+        '<td><strong>' + l.total_co2.toFixed(2) + '</strong> kg</td>' +
+        '<td>+' + l.ball + ' ⭐</td></tr>'
+      ).join('');
+    }
+
+    (async () => {
+      const user = await requireAdmin();
+      if (!user) {
+        document.getElementById('loader').style.display = 'none';
+        document.getElementById('denied').style.display = 'block';
+        return;
+      }
+      document.getElementById('nav-avatar').textContent = user.email[0].toUpperCase();
+      await Promise.all([loadTasks(), loadUsers(), loadLogs()]);
+      document.getElementById('loader').style.display = 'none';
+      document.getElementById('content').style.display = 'block';
+    })();
+  </script>
+</body>
+</html>

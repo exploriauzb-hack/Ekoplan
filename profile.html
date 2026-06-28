@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Profil — EkoPlan</title>
+  <link rel="stylesheet" href="css/style.css"/>
+  <style>
+    .profile-hero {
+      background: linear-gradient(135deg, #1a3a1a, #0f2a0f);
+      border: 1px solid var(--green-dim);
+      border-radius: var(--radius);
+      padding: 28px;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .profile-avatar-big {
+      width: 80px; height: 80px; border-radius: 50%;
+      background: var(--green-dim);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 32px; font-weight: 700; color: var(--green);
+      margin: 0 auto 14px;
+      border: 3px solid var(--green2);
+    }
+    .profile-name { font-size: 20px; font-weight: 700; }
+    .profile-email { font-size: 13px; color: var(--text2); margin-top: 3px; }
+    .level-badge {
+      display: inline-block; margin-top: 10px;
+      padding: 4px 16px; border-radius: 20px;
+      background: var(--green-dim); color: var(--green);
+      font-size: 13px; font-weight: 600;
+    }
+    .history-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 12px 0; border-bottom: 1px solid var(--border);
+      font-size: 14px;
+    }
+    .history-row:last-child { border-bottom: none; }
+    .history-date { color: var(--text2); font-size: 13px; }
+    .history-co2 { font-weight: 600; }
+    .history-ball { color: var(--brown2); font-size: 13px; }
+    .co2-good { color: var(--green); }
+    .co2-medium { color: var(--warning); }
+    .co2-bad { color: var(--danger); }
+    .edit-form { display: none; }
+    .edit-form.show { display: block; }
+  </style>
+</head>
+<body>
+  <nav class="navbar">
+    <div class="navbar-brand"><span>🌿</span>EkoPlan</div>
+    <div class="navbar-links">
+      <a href="dashboard.html">Dashboard</a>
+      <a href="calculator.html">CO₂ Hisoblagich</a>
+      <a href="tasks.html">Vazifalar</a>
+      <a href="profile.html" class="active">Profil</a>
+    </div>
+    <div class="navbar-user">
+      <div class="navbar-avatar" id="nav-avatar">?</div>
+      <button class="btn btn-outline btn-sm" onclick="logout()">Chiqish</button>
+    </div>
+  </nav>
+
+  <div class="bottom-nav">
+    <div class="bottom-nav-items">
+      <a href="dashboard.html" class="bottom-nav-item"><span class="icon">🏠</span>Bosh</a>
+      <a href="calculator.html" class="bottom-nav-item"><span class="icon">🌡️</span>CO₂</a>
+      <a href="tasks.html" class="bottom-nav-item"><span class="icon">✅</span>Vazifa</a>
+      <a href="profile.html" class="bottom-nav-item active"><span class="icon">👤</span>Profil</a>
+    </div>
+  </div>
+
+  <div class="page-wrap">
+    <div id="loader" class="loader"><div class="spinner"></div> Yuklanmoqda...</div>
+    <div id="content" style="display:none">
+
+      <!-- Hero -->
+      <div class="profile-hero">
+        <div class="profile-avatar-big" id="avatar-big">?</div>
+        <div class="profile-name" id="p-name">—</div>
+        <div class="profile-email" id="p-email">—</div>
+        <div class="level-badge" id="p-level">🌱 Boshlang'ich</div>
+      </div>
+
+      <!-- Stats -->
+      <div class="grid-3" style="margin-bottom:20px">
+        <div class="card stat-card">
+          <div class="stat-icon">⭐</div>
+          <div class="stat-val" id="s-ball">0</div>
+          <div class="stat-label">Jami ball</div>
+        </div>
+        <div class="card stat-card">
+          <div class="stat-icon">🔥</div>
+          <div class="stat-val" id="s-streak">0</div>
+          <div class="stat-label">Streak</div>
+        </div>
+        <div class="card stat-card">
+          <div class="stat-icon">📅</div>
+          <div class="stat-val" id="s-days">0</div>
+          <div class="stat-label">Log kunlar</div>
+        </div>
+      </div>
+
+      <!-- Edit profile -->
+      <div class="card" style="margin-bottom:20px">
+        <div class="section-header">
+          <div class="section-title">✏️ Profilni tahrirlash</div>
+          <button class="btn btn-outline btn-sm" onclick="toggleEdit()">Tahrirlash</button>
+        </div>
+        <div id="edit-form" class="edit-form">
+          <div id="edit-msg"></div>
+          <div class="input-group">
+            <label>To'liq ism</label>
+            <input type="text" id="e-name" placeholder="Ism Familiya"/>
+          </div>
+          <div style="display:flex;gap:10px">
+            <button class="btn btn-primary" onclick="saveProfile()">Saqlash</button>
+            <button class="btn btn-outline" onclick="toggleEdit()">Bekor</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Log history -->
+      <div class="card" style="margin-bottom:20px">
+        <div class="section-header">
+          <div class="section-title">📋 So'nggi loglar</div>
+        </div>
+        <div id="history-list"><div class="loader"><div class="spinner"></div></div></div>
+      </div>
+
+      <!-- Logout -->
+      <button class="btn btn-danger btn-full" onclick="logout()">🚪 Chiqish</button>
+
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/supabase.js"></script>
+  <script src="js/auth.js"></script>
+  <script>
+    let currentUser = null;
+
+    function getLevel(ball) {
+      if (ball < 50) return '🌱 Boshlang\'ich';
+      if (ball < 150) return '🌿 O\'rta';
+      if (ball < 300) return '🌳 Ilg\'or';
+      if (ball < 500) return '🦋 Eko Ustasi';
+      return '🌍 Sayyora Qahramoni';
+    }
+
+    function co2Class(v) {
+      if (v < 4) return 'co2-good';
+      if (v < 8) return 'co2-medium';
+      return 'co2-bad';
+    }
+
+    function toggleEdit() {
+      document.getElementById('edit-form').classList.toggle('show');
+    }
+
+    async function saveProfile() {
+      const name = document.getElementById('e-name').value.trim();
+      if (!name) return;
+      const { error } = await _sb.from('profiles').update({ full_name: name }).eq('id', currentUser.id);
+      if (error) {
+        document.getElementById('edit-msg').innerHTML = '<div class="alert alert-error">' + error.message + '</div>';
+        return;
+      }
+      document.getElementById('p-name').textContent = name;
+      document.getElementById('avatar-big').textContent = name[0].toUpperCase();
+      document.getElementById('nav-avatar').textContent = name[0].toUpperCase();
+      toggleEdit();
+    }
+
+    (async () => {
+      currentUser = await requireAuth();
+      if (!currentUser) return;
+
+      const profile = await getProfile(currentUser.id);
+      const name = profile?.full_name || currentUser.email.split('@')[0];
+
+      document.getElementById('p-name').textContent = name;
+      document.getElementById('p-email').textContent = currentUser.email;
+      document.getElementById('avatar-big').textContent = name[0].toUpperCase();
+      document.getElementById('nav-avatar').textContent = name[0].toUpperCase();
+      document.getElementById('e-name').value = name;
+
+      const ball = profile?.total_ball || 0;
+      document.getElementById('s-ball').textContent = ball;
+      document.getElementById('s-streak').textContent = profile?.streak || 0;
+      document.getElementById('p-level').textContent = getLevel(ball);
+
+      const { data: logs, count } = await _sb.from('daily_logs')
+        .select('*', { count: 'exact' })
+        .eq('user_id', currentUser.id)
+        .order('log_date', { ascending: false })
+        .limit(10);
+
+      document.getElementById('s-days').textContent = count || 0;
+
+      const hist = document.getElementById('history-list');
+      if (!logs || logs.length === 0) {
+        hist.innerHTML = '<div class="empty"><div class="empty-icon">📭</div><div class="empty-text">Hali log yo\'q. CO₂ hisoblashni boshlang!</div></div>';
+      } else {
+        hist.innerHTML = logs.map(l => {
+          const d = new Date(l.log_date).toLocaleDateString('uz-UZ', { month:'short', day:'numeric', weekday:'short' });
+          return '<div class="history-row">' +
+            '<span class="history-date">' + d + '</span>' +
+            '<span class="history-co2 ' + co2Class(l.total_co2) + '">' + l.total_co2.toFixed(1) + ' kg CO₂</span>' +
+            '<span class="history-ball">+' + l.ball + ' ⭐</span>' +
+            '</div>';
+        }).join('');
+      }
+
+      document.getElementById('loader').style.display = 'none';
+      document.getElementById('content').style.display = 'block';
+    })();
+  </script>
+</body>
+</html>
